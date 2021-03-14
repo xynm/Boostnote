@@ -1,10 +1,20 @@
-(function(mod) {
-  if (typeof exports == "object" && typeof module == "object") // CommonJS
-    mod(require("../codemirror/lib/codemirror"), require("../codemirror/mode/gfm/gfm"), require("../codemirror/mode/yaml-frontmatter/yaml-frontmatter"))
-  else if (typeof define == "function" && define.amd) // AMD
-    define(["../codemirror/lib/codemirror", "../codemirror/mode/gfm/gfm", "../codemirror/mode/yaml-frontmatter/yaml-frontmatter"], mod)
-  else // Plain browser env
-    mod(CodeMirror)
+;(function(mod) {
+  if (typeof exports == 'object' && typeof module == 'object')
+    // CommonJS
+    mod(
+      require('../codemirror/lib/codemirror'),
+      require('../codemirror/mode/gfm/gfm'),
+      require('../codemirror/mode/yaml-frontmatter/yaml-frontmatter')
+    )
+  else if (typeof define == 'function' && define.amd)
+    // AMD
+    define([
+      '../codemirror/lib/codemirror',
+      '../codemirror/mode/gfm/gfm',
+      '../codemirror/mode/yaml-frontmatter/yaml-frontmatter'
+    ], mod)
+  // Plain browser env
+  else mod(CodeMirror)
 })(function(CodeMirror) {
   'use strict'
 
@@ -87,18 +97,23 @@
       token: function(stream, state) {
         const initialPos = stream.pos
 
-        if (state.fencedEndRE && stream.match(state.fencedEndRE)) {
-          state.fencedEndRE = null
-          state.fencedMode = null
-          state.fencedState = null
+        if (state.fencedEndRE) {
+          if (stream.match(state.fencedEndRE)) {
+            state.fencedEndRE = null
+            state.fencedMode = null
+            state.fencedState = null
 
-          stream.pos = initialPos
+            stream.pos = initialPos
+          } else if (state.fencedMode) {
+            return state.fencedMode.token(stream, state.fencedState)
+          } else {
+            state.overlayCur = this.overlayToken(stream, state)
+            state.overlayPos = stream.pos
+
+            return state.overlayCur
+          }
         }
         else {
-          if (state.fencedMode) {
-            return state.fencedMode.token(stream, state.fencedState)
-          }
-
           const match = stream.match(fencedCodeRE, true)
           if (match) {
             state.fencedEndRE = new RegExp(match[1] + '+ *$')
@@ -141,28 +156,8 @@
       overlayToken: function(stream, state) {
         state.combineTokens = false
 
-        if (state.fencedEndRE && stream.match(state.fencedEndRE)) {
-          state.fencedEndRE = null
-          state.localMode = null
-          state.localState = null
-
-          return null
-        }
-
         if (state.localMode) {
           return state.localMode.token(stream, state.localState) || ''
-        }
-
-        const match = stream.match(fencedCodeRE, true)
-        if (match) {
-          state.fencedEndRE = new RegExp(match[1] + '+ *$')
-
-          state.localMode = getMode(match[2], match[3], config, stream.lineOracle.doc.cm)
-          if (state.localMode) {
-            state.localState = CodeMirror.startState(state.localMode)
-          }
-
-          return null
         }
 
         state.combineTokens = true
@@ -226,8 +221,8 @@
   CodeMirror.defineMIME('text/x-bfm', 'bfm')
 
   CodeMirror.modeInfo.push({
-    name: "Boost Flavored Markdown",
-    mime: "text/x-bfm",
-    mode: "bfm"
+    name: 'Boost Flavored Markdown',
+    mime: 'text/x-bfm',
+    mode: 'bfm'
   })
 })
